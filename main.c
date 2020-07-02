@@ -10,6 +10,9 @@
 
 
 APP_TIMER_DEF(m_repeated_timer_id);     /**< Handler for repeated timer used to blink LED 1. */
+APP_TIMER_DEF(m_single_shot_timer_id);  /**< Handler for single shot timer used to light LED 2. */
+
+static uint32_t timeout = 0;
 
 
 /**@brief Button event handler function.
@@ -27,13 +30,16 @@ void button_event_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action
         APP_ERROR_CHECK(err_code);
         break;
     case BUTTON_2:
-        // Turn off LED 1.
-        nrf_drv_gpiote_out_set(LED_1);
+        // Stop the repeated timer (stop blinking LED).
+        err_code = app_timer_stop(m_repeated_timer_id);
+        APP_ERROR_CHECK(err_code);
         break;
     case BUTTON_3:
-        // Turn on LED 2.
-        nrf_drv_gpiote_out_clear(LED_2);
-        break;
+        // Start single shot timer which turns on LED2 when it expires.
+        // Increase the timeout with 1 second every time.
+        timeout += 1000;
+        err_code = app_timer_start(m_single_shot_timer_id, APP_TIMER_TICKS(timeout), NULL);
+        APP_ERROR_CHECK(err_code);
     case BUTTON_4:
         // Turn off LED 2.
         nrf_drv_gpiote_out_set(LED_2);
@@ -106,6 +112,11 @@ static void repeated_timer_handler(void * p_context)
     nrf_drv_gpiote_out_toggle(LED_1);
 }
 
+static void single_shot_timer_handler(void * p_context)
+{
+    nrf_drv_gpiote_out_clear(LED_2);
+}
+
 static void create_timers()
 {
     ret_code_t err_code;
@@ -114,6 +125,11 @@ static void create_timers()
     err_code = app_timer_create(&m_repeated_timer_id,
                                 APP_TIMER_MODE_REPEATED,
                                 repeated_timer_handler);
+    APP_ERROR_CHECK(err_code);
+
+    err_code = app_timer_create(&m_single_shot_timer_id,
+                                APP_TIMER_MODE_SINGLE_SHOT,
+                                single_shot_timer_handler);
     APP_ERROR_CHECK(err_code);
 }
 
